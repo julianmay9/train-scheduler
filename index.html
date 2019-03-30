@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset ="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Train Scheduler</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+    <link rel ="stylesheet" type="text/css" href="assets/css/style.css">
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/5.9.1/firebase.js"></script>
+    <script src="https://cdn.jsdelivr.net/momentjs/2.12.0/moment.min.js"></script>
+  </head>
+  <body>
+    <div class ="container">
+      <div class ="jumbotron">
+        <h1 class="text-center" id="main-heading">Anytime is Train Time</h1>
+        <h3 class="text-center" id="sub-heading">Choo Choo. Chee Chee.</h3>
+      </div>
+      <div class="row">
+        <div class="col-lg-12">
+          <div class="panel panel-primary">
+            <div class="panel-heading">
+              <h3 class="panel-title">Current Train Schedule</h3>
+            </div>
+            <div class="panel-body">
+              <table class="table table-hover" id="timetable">
+                <thead>
+                  <tr>
+                    <th>Train Name</th>
+                    <th>Destination</th>
+                    <th>Frequency (mins)</th>
+                    <th>Next Arrival</th>
+                    <th>Minutes Away</th>
+                  </tr>
+                </thead>
+                <tbody>
+                    
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <br>
+
+      <div class="row">
+        <div class="col-lg-12">
+          <div class="panel panel-primary">
+            <div class="panel-heading">
+              <h3 class="panel-title">Add Train</h3>
+            </div>
+            <div class="panel-body">
+
+              <form id="form">
+                <div class="form-group">
+                  <label for="">Train Name</label>
+                  <input type="text" class="form-control" id="train-name">
+                </div>
+
+                <div class="form-group">
+                  <label for="">Destination</label>
+                  <input type="text" class="form-control" id="train-destination">
+                </div>
+
+                <div class="form-group">
+                  <label for="">First Train Time (HH:mm - military time)</label>
+                  <input type="text" class="form-control" id="next-arrival">
+                </div>
+
+                <div class="form-group">
+                  <label for="">Frequency (mins)</label>
+                  <input type="text" class="form-control" id="train-frequency">
+                </div>
+                  
+                <button type="submit" class="btn btn-primary" id="add-train">Submit</button>
+              </form>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <br>
+
+    <script>
+
+    // Initialize Firebase
+    var config = {
+        apiKey: "AIzaSyDiVQuaTE4dvNiWeLY-JCHhxYUVuoG2cws",
+        authDomain: "test-9adec.firebaseapp.com",
+        databaseURL: "https://test-9adec.firebaseio.com",
+        projectId: "test-9adec",
+        storageBucket: "test-9adec.appspot.com",
+        messagingSenderId: "730253541797"
+    };
+
+    firebase.initializeApp(config);
+    var database = firebase.database();
+
+    $('#add-train').on("click", function() {
+      // When the submit button is clicked, collect the user input values from the form and store these in variables. Use to trim() function to ensure that any accidental spaces before or after the string are deleted
+      var trainName = $("#train-name").val().trim();
+      var trainDestination = $("#train-destination").val().trim();
+      var firstAvailableTrain = moment($("#next-arrival").val().trim(), "HH:mm").format("HH:mm");
+      var trainFrequency = $("#train-frequency").val().trim();
+      // Create a temporary object to hold the data for each new train
+      var newTrain = {
+        name: trainName,
+        destination: trainDestination,
+        nextArrival: firstAvailableTrain,
+        frequency: trainFrequency
+      }
+      // Upload our new train data to the Firebase database
+      database.ref().push(newTrain);
+      console.log(newTrain.name);
+      // Clear the input boxes so that a new train can be added to our database
+      $("#train-name").val("");
+      $("#train-destination").val("");
+      $("#next-arrival").val("");
+      $("#train-frequency").val("");
+      return false;
+    });
+    // Create an "event listener" on Firebase which monitors each new train pushed into the database and will add a row in the HTML to display each input value
+    database.ref().on("child_added", function(snapshot) {
+      console.log(snapshot.val());
+      // Store the snapshot values in variables
+      var trainName = snapshot.val().name;
+      var trainDestination = snapshot.val().destination;
+      var firstAvailableTrain = snapshot.val().nextArrival;
+      var trainFrequency = snapshot.val().frequency;
+      // Create a variable to hold data on the first available train using moment.js which can be used later to calculate the time difference between the current time and this train's arrival
+      var firstTimeConverted = moment(firstAvailableTrain, "HH:mm");
+      console.log(firstTimeConverted);
+      // Create a variable to store the current time
+      var currentTime = moment().format("HH:mm");
+      console.log("Current time: " + currentTime);
+      // Store the difference between the current time and the first train arrival time the user logged in a variable
+      var timeDiff = moment().diff(moment(firstTimeConverted), "minutes");
+      console.log(firstAvailableTrain);
+      console.log("Time difference between now and when the original 'next train' arrived (in mins): " + timeDiff);
+      console.log("Train frequency: " + trainFrequency);
+      // Calculate the remaining number of minutes until the train arrives by taking the train frequency (in minutes) and dividing it by the difference (in minutes) between the current time and the next available train, grabbing the value of the remaining minutes and storing this value in a variable
+      var timeRemainder = timeDiff % trainFrequency;
+      console.log("Time remaining before next arrival (returns a negative): " + timeRemainder);
+      // Complete the calculation by taking the remaining minutes and subtracting these from the total amount of time it could take for the train to arrive
+      var minsAway = ((trainFrequency - timeRemainder) - trainFrequency) + 1;
+      console.log("Minutes away (returns a positive): " + minsAway);
+      // Calculate the time at which the new train will arrive by taking the current time and adding the number of minutes the next available train will take to arrive. Add this value to a variable so that we can display it on our timetable
+      var nextTrainArrives = moment().add(minsAway, "minutes").format("HH:mm");
+      console.log(nextTrainArrives);
+      // Append all of the values we've collected into the correct rows of our timetable
+      $("#timetable>tbody").append("<tr><td>" + trainName + "</td><td>" + trainDestination + "</td><td>" + trainFrequency + "</td><td>" + nextTrainArrives + "</td><td>" + minsAway + "</td></tr>");
+    });
+
+    /*
+    ### Overview
+
+    In this assignment, you'll create a train schedule application that incorporates Firebase to host arrival and departure data. Your app will retrieve and manipulate this information with Moment.js. This website will provide up-to-date information about various trains, namely their arrival times and how many minutes remain until they arrive at their station.
+
+    - - -
+
+    ### Setup
+
+    * We'll leave that up to you -- however you like. Just make sure you're using Firebase to store data, GitHub to backup your project, and GitHub Pages to host your finished site.
+
+    ### Submission on BCS
+
+    * Please submit both the deployed Github.io link to your homework AND the link to the Github Repository!
+
+    ### Instructions
+
+    * Make sure that your app suits this basic spec:
+      
+      * When adding trains, administrators should be able to submit the following:
+        
+        * Train Name
+        
+        * Destination 
+        
+        * First Train Time -- in military time
+        
+        * Frequency -- in minutes
+      
+      * Code this app to calculate when the next train will arrive; this should be relative to the current time.
+      
+      * Users from many different machines must be able to view same train times.
+      
+      * Styling and theme are completely up to you. Get Creative!
+
+    ### Example Site
+
+    ![train homework](Train_Time_Image.png)
+
+    ### Bonus (Extra Challenges)
+
+    * Consider updating your "minutes to arrival" and "next train time" text once every minute. This is significantly more challenging; only attempt this if you've completed the actual activity and committed it somewhere on GitHub for safekeeping (and maybe create a second GitHub repo).
+
+    * Try adding `update` and `remove` buttons for each train. Let the user edit the row's elements-- allow them to change a train's Name, Destination and Arrival Time (and then, by relation, minutes to arrival).
+
+    * As a final challenge, make it so that only users who log into the site with their Google or GitHub accounts can use your site. You'll need to read up on Firebase authentication for this bonus exercise.
+
+    ### Reminder: Submission on BCS
+
+    * Please submit both the deployed Github.io link to your homework AND the link to the Github Repository!
+
+    - - -
+
+    ### Minimum Requirements
+
+    Attempt to complete homework assignment as described in instructions. If unable to complete certain portions, please pseudocode these portions to describe what remains to be completed. Adding a README.md as well as adding this homework to your portfolio are required as well and more information can be found below.
+
+    - - -
+
+    ### Create a README.md
+
+    Add a `README.md` to your repository describing the project. Here are some resources for creating your `README.md`. Here are some resources to help you along the way:
+
+    * [About READMEs](https://help.github.com/articles/about-readmes/)
+
+    * [Mastering Markdown](https://guides.github.com/features/mastering-markdown/)
+
+    - - -
+
+    ### Add To Your Portfolio
+
+    After completing the homework please add the piece to your portfolio. Make sure to add a link to your updated portfolio in the comments section of your homework so the TAs can easily ensure you completed this step when they are grading the assignment. To receive an 'A' on any assignment, you must link to it from your portfolio.
+    */
+    </script>
+  </body>
+</html>
