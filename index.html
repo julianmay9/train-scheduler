@@ -145,7 +145,7 @@
       var timeRemainder = timeDiff % trainFrequency;
       console.log("Time remaining before next arrival (returns a negative): " + timeRemainder);
       // Complete the calculation by taking the remaining minutes and subtracting these from the total amount of time it could take for the train to arrive
-      var minsAway = ((trainFrequency - timeRemainder) - trainFrequency) + 1;
+      var minsAway = trainFrequency - timeRemainder;
       console.log("Minutes away (returns a positive): " + minsAway);
       // Calculate the time at which the new train will arrive by taking the current time and adding the number of minutes the next available train will take to arrive. Add this value to a variable so that we can display it on our timetable
       var nextTrainArrives = moment().add(minsAway, "minutes").format("HH:mm");
